@@ -12,20 +12,17 @@ steps:
   inputs:
     command: 'get'
     arguments: '-d -v'
-
-- task: Go@0
-  inputs:
-    command: 'custom'
-    customCommand: 'install'
-    arguments: '-v'
+  displayName: 'Get all depedency libraries'
 
 - task: Go@0
   inputs:
     command: 'build'
+  displayName: 'Building code'
 
 - task: Go@0
   inputs:
     command: 'test'
+  displayName: 'Running tests'
 
 - task: CopyFiles@2
   inputs:
