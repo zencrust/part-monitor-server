@@ -1,6 +1,3 @@
-# Node.js with React
-# Build a Node.js project that uses React.
-
 # Add steps that analyze code, save build artifacts, deploy, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
 
@@ -10,10 +7,13 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
-steps:
-- script: |
-  docker build -t $(dockerId)/$(imageName):$(Build.BuildNumber) -t $(dockerId)/$(imageName):latest .
-  docker login -u $(dockerId) -p $(dockerPassword)
-  docker push $(dockerId)/$(imageName):$(Build.BuildNumber)
-  docker push $(dockerId)/$(imageName):latest
-displayName: 'Docker build and push'
+- task: CmdLine@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      # Write your commands here
+      docker build -t $(dockerId)/$(imageName):$(Build.BuildNumber) -t $(dockerId)/$(imageName):latest .
+      docker login -u $(dockerId) -p $(dockerPassword)
+      docker push $(dockerId)/$(imageName):$(Build.BuildNumber)
+      docker push $(dockerId)/$(imageName):latest
+    displayName: 'Docker build and push'
