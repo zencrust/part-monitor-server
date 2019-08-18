@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,60 +15,51 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type mqttPayLoad struct {
-	Value     bool    `json:"value"`
-	Duration  float32 `json:"duration"`
-	startDate time.Time
-}
-
 var defaultMessageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	fmt.Printf("TOPIC: %s\n", msg.Topic())
 	fmt.Printf("MSG: %s\n", msg.Payload())
 }
 
 func getMessageHandler(sql *SQLDB) mqtt.MessageHandler {
-	var onData map[string]*mqttPayLoad
+	var onData map[string]int64
 	loc, _ := time.LoadLocation("Asia/Kolkata")
 	return func(client mqtt.Client, msg mqtt.Message) {
 		fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
-		currentPacket := mqttPayLoad{}
-		err := json.Unmarshal(msg.Payload(), &currentPacket)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		arr := strings.Split(msg.Topic(), "/")
-
 		//Application Name/Station Name/function/name
 		// for example partmon/Station 1/dio/value
+		arr := strings.Split(msg.Topic(), "/")
 		if len(arr) != 4 {
 			log.Println("unknown topic format", msg.Topic())
 			return
 		}
-		if arr[3] != "value" {
+		if arr[3] != "dio" && arr[2] != "Swicth Pressed"{
 			// topic not required here
 			return
 		}
 
+		n := bytes.Index(msg.Payload(), []byte{0})
+		s := string(msg.Payload()[:n])
+		currentPacket, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			log.Println("unknown value format", s)
+			return
+		}
+
 		device := arr[1]
-		if val, ok := onData[device]; ok {
-			//value transistion from high to low. log total time and delete from available station
-			if !currentPacket.Value {
-				delete(onData, device)
-				err := sql.WriteData(device, val.startDate, val.Duration, "")
+		//on packet
+
+		if previousPacket, ok := onData[device]; ok {
+			//value transition from high to low. log total time and delete from available station
+			if currentPacket == 0 && previousPacket > 1566129872 {
+				tm := time.Unix(previousPacket, 0).In(loc)
+				err := sql.WriteData(device, tm, float32(currentPacket-previousPacket), "")
 				if err != nil {
 					log.Println(err)
 				}
-			} else {
-				// value is high and its just an update. update current duration alone
-				val.Duration = currentPacket.Duration
 			}
-
-		} else if currentPacket.Value {
-			// value is not availble in onData i.e value before was false. This is starting trigger from low to high
-			currentPacket.startDate = time.Now().In(loc)
-			onData[device] = &currentPacket
 		}
+
+		onData[device] = currentPacket
 	}
 }
 
@@ -99,7 +91,7 @@ func getReportHandler(sql *SQLDB) http.HandlerFunc {
 		offsetStr := r.URL.Query().Get("offset")
 		if limitStr == "" || offsetStr == "" {
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			fmt.Fprintf(w, "422- Query paramaters not supplied")
+			fmt.Fprintf(w, "422- Query parameters not supplied")
 			return
 		}
 		limit, err1 := strconv.ParseUint(limitStr, 10, 16)
@@ -107,7 +99,7 @@ func getReportHandler(sql *SQLDB) http.HandlerFunc {
 
 		if err1 != nil || err2 != nil {
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			fmt.Fprintf(w, "422- Query paramaters not valid")
+			fmt.Fprintf(w, "422- Query parameters not valid")
 			return
 		}
 
