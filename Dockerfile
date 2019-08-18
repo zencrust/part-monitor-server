@@ -1,6 +1,6 @@
 FROM arm32v7/golang:alpine3.9 AS multistage
 
-RUN apk add --no-cache --update git alpine-sdk
+RUN apk add --no-cache --update alpine-sdk
 
 WORKDIR /go/src/alarm-logger
 COPY . .
