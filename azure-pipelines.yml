@@ -38,6 +38,7 @@ steps:
 
 - script: |
     # Write your commands here
+    docker run --rm --privileged multiarch/qemu-user-static:register --reset
     docker build -t $(dockerId)/$(imageName):$(Build.BuildNumber) -t $(dockerId)/$(imageName):latest .
     docker login -u $(dockerId) -p $(dockerPassword)
     docker push $(dockerId)/$(imageName):$(Build.BuildNumber)
