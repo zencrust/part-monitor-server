@@ -55,7 +55,8 @@ func getMessageHandler(sql *SQLDB) mqtt.MessageHandler {
 			if currentPacket == 0 && previousPacket > 1566129872 {
 				log.Println("writing packet to db")
 				tm := time.Unix(previousPacket, 0).In(loc)
-				err := sql.WriteData(device, tm, float32(currentPacket-previousPacket), "")
+				secs := time.Now().Unix()
+				err := sql.WriteData(device, tm, float32(secs-previousPacket), "")
 				if err != nil {
 					log.Println(err)
 				}
