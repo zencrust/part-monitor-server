@@ -1,0 +1,45 @@
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: Go@0
+  inputs:
+    command: 'get'
+    arguments: '-d -v'
+  displayName: 'Get all depedency libraries'
+
+- task: Go@0
+  inputs:
+    command: 'build'
+  displayName: 'Building code'
+
+- task: Go@0
+  inputs:
+    command: 'test'
+  displayName: 'Running tests'
+
+- task: CopyFiles@2
+  inputs:
+    Contents: '$(imageName)'
+    TargetFolder: $(Build.ArtifactStagingDirectory)
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    ArtifactName: 'Version $(Build.BuildNumber)'
+    PathtoPublish: $(Build.ArtifactStagingDirectory)
+    publishLocation: Container
+    TargetPath: .
+
+- script: |
+    # Write your commands here
+    docker build -t $(dockerId)/$(imageName):$(Build.BuildNumber) -t $(dockerId)/$(imageName):latest .
+    docker login -u $(dockerId) -p $(dockerPassword)
+    docker push $(dockerId)/$(imageName):$(Build.BuildNumber)
+    docker push $(dockerId)/$(imageName):latest
+  displayName: 'Docker build and push'
