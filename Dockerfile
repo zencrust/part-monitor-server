@@ -11,6 +11,7 @@ RUN go get -d -v \
 
 FROM arm32v7/alpine:latest
 COPY --from=multistage /go/bin/alarm-logger /
+RUN apk add --no-cache tzdata
 
 EXPOSE 9503
 CMD ["./alarm-logger"]

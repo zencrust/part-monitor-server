@@ -21,7 +21,10 @@ var defaultMessageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqt
 
 func getMessageHandler(sql *SQLDB) mqtt.MessageHandler {
 	onData := make(map[string]int64)
-	loc, _ := time.LoadLocation("Asia/Kolkata")
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		log.Println(err)
+	}
 	return func(client mqtt.Client, msg mqtt.Message) {
 		fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
 		//Application Name/Station Name/function/name
