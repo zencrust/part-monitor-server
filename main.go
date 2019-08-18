@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -21,7 +20,7 @@ var defaultMessageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqt
 }
 
 func getMessageHandler(sql *SQLDB) mqtt.MessageHandler {
-	var onData map[string]int64
+	onData := make(map[string]int64)
 	loc, _ := time.LoadLocation("Asia/Kolkata")
 	return func(client mqtt.Client, msg mqtt.Message) {
 		fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
@@ -32,13 +31,13 @@ func getMessageHandler(sql *SQLDB) mqtt.MessageHandler {
 			log.Println("unknown topic format", msg.Topic())
 			return
 		}
-		if arr[3] != "dio" && arr[2] != "Swicth Pressed"{
+		if arr[2] != "dio" && arr[3] != "Swicth Pressed" {
 			// topic not required here
 			return
 		}
 
-		n := bytes.Index(msg.Payload(), []byte{0})
-		s := string(msg.Payload()[:n])
+		//n := bytes.Index(msg.Payload(), []byte{0})
+		s := string(msg.Payload())
 		currentPacket, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			log.Println("unknown value format", s)
@@ -51,6 +50,7 @@ func getMessageHandler(sql *SQLDB) mqtt.MessageHandler {
 		if previousPacket, ok := onData[device]; ok {
 			//value transition from high to low. log total time and delete from available station
 			if currentPacket == 0 && previousPacket > 1566129872 {
+				log.Println("writing packet to db")
 				tm := time.Unix(previousPacket, 0).In(loc)
 				err := sql.WriteData(device, tm, float32(currentPacket-previousPacket), "")
 				if err != nil {
@@ -75,7 +75,7 @@ func mqttInit(brokerAddress string, sql *SQLDB) (mqtt.Client, error) {
 	}
 
 	// subs := map[string]byte{"partmon/temp/Tank 1": 0}
-	token := c.Subscribe("partmon/#", 0, getMessageHandler(sql))
+	token := c.Subscribe("partalarm/#", 0, getMessageHandler(sql))
 
 	if token.Wait() && token.Error() != nil {
 		return c, token.Error()
