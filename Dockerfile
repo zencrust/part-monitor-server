@@ -1,7 +1,7 @@
 FROM arm32v7/golang:alpine3.9 AS multistage
+COPY qemu-arm-static /usr/bin
 
 RUN apk add --no-cache --update alpine-sdk
-COPY qemu-arm-static /usr/bin
 
 WORKDIR /go/src/alarm-logger
 COPY . .
