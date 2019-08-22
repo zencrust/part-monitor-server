@@ -35,12 +35,23 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 			return
 		}
 
-		if (arr[2] == "telemetry" && arr[3] == "wifi Signal Strength") || arr[2] == "dio" {
-			topicLastseen := arr[0] + "/" + arr[1] + "/" + arr[2] + "last update time"
-			c.Publish(topicLastseen, 0, true, time.Now().Unix())
+		// if arr[2] == "telemetry" || arr[2] == "dio" {
+
+		if arr[3] == "wifi Signal Strength" {
+			fmt.Println("publish last seen")
+			topicLastseen := arr[0] + "/" + arr[1] + "/" + arr[2] + "/" + "last update time"
+			tot := c.Publish(topicLastseen, 0, true, strconv.FormatInt(time.Now().Unix(), 10))
+			tot.Wait()
+			if tot.Error() != nil {
+				log.Println(tot.Error())
+			}
 		}
 
-		if arr[2] != "dio" && arr[3] != "Switch Pressed" {
+		if arr[2] == "telemetry" {
+			return
+		}
+
+		if arr[3] == "Swicth Pressed" {
 			// topic not required here
 			return
 		}
@@ -54,12 +65,12 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 		}
 
 		var currentPacket int64
-		topicModified := arr[0] + "/" + arr[1] + "/" + arr[2] + "Swicth Pressed"
+		topicModified := arr[0] + "/" + arr[1] + "/" + arr[2] + "/" + "Swicth Pressed"
 		if currentPacketDevice > 0 {
 			currentPacket = time.Now().Unix()
 		}
-
-		c.Publish(topicModified, 0, true, currentPacket)
+		log.Println("mqtt pub", topicModified, currentPacketDevice)
+		c.Publish(topicModified, 0, true, strconv.FormatInt(currentPacket, 10)).Wait()
 
 		device := arr[1]
 		//on packet
@@ -89,9 +100,10 @@ func mqttInit(brokerAddress string, sql *SQLDB) (mqtt.Client, error) {
 	opts.SetAutoReconnect(true)
 	c := mqtt.NewClient(opts)
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
+		log.Println("mqtt server error")
 		return c, token.Error()
 	}
-
+	fmt.Println("mqtt connected")
 	// subs := map[string]byte{"partmon/temp/Tank 1": 0}
 	token := c.Subscribe("partalarm/#", 0, getMessageHandler(sql, c))
 
@@ -151,16 +163,17 @@ func getReportHandler(sql *SQLDB) http.HandlerFunc {
 }
 
 func main() {
+	//knt := 0
 	databasePath, found := os.LookupEnv("DATABASE_PATH")
 	if !found {
 		log.Println("using default database path")
-		databasePath = "D:\\test.db"
+		databasePath = "./pythonsqlite.db"
 	}
 
 	mqttServer, found := os.LookupEnv("MQTT_SERVER_ADDRESS")
 	if !found {
 		log.Println("using default mqtt server address")
-		mqttServer = "tcp://smartdashboard.local:1883"
+		mqttServer = "tcp://localhost:1883"
 	}
 
 	sql, err := Opendb(databasePath)
@@ -176,6 +189,11 @@ func main() {
 	}
 
 	http.HandleFunc("/api/v1/getreport", getReportHandler(sql))
+	//for 1 == 1{
+	//	time.Sleep(1 * time.Second)
+	//}
+	//cha := make(chan os.Signal, 1)
+	//<- cha
 	fmt.Println("starting http server...")
 	log.Fatal(http.ListenAndServe(":9503", nil))
 	c.Disconnect(250)
