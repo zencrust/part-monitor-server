@@ -34,23 +34,21 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 			log.Println("unknown topic format", msg.Topic())
 			return
 		}
-
-		// if arr[2] == "telemetry" || arr[2] == "dio" {
-
+		
 		if arr[3] == "wifi Signal Strength" {
 			fmt.Println("publish last seen")
 			topicLastseen := arr[0] + "/" + arr[1] + "/" + arr[2] + "/" + "last update time"
 			tot := c.Publish(topicLastseen, 0, true, strconv.FormatInt(time.Now().Unix(), 10))
 			tot.Wait()
-			if tot.Error() != nil {
+			if tot.Error() != nil{
 				log.Println(tot.Error())
 			}
 		}
 
-		if arr[2] == "telemetry" {
+		if arr[2] == "telemetry"{
 			return
 		}
-
+			
 		if arr[3] == "Swicth Pressed" {
 			// topic not required here
 			return
@@ -58,30 +56,23 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 
 		//n := bytes.Index(msg.Payload(), []byte{0})
 		s := string(msg.Payload())
-		currentPacketDevice, err := strconv.ParseInt(s, 10, 32)
+		currentPacket, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			log.Println("unknown value format", s)
 			return
 		}
 
-		var currentPacket int64
-		topicModified := arr[0] + "/" + arr[1] + "/" + arr[2] + "/" + "Swicth Pressed"
-		if currentPacketDevice > 0 {
-			currentPacket = time.Now().Unix()
-		}
-		log.Println("mqtt pub", topicModified, currentPacketDevice)
-		c.Publish(topicModified, 0, true, strconv.FormatInt(currentPacket, 10)).Wait()
 
 		device := arr[1]
 		//on packet
 
 		if previousPacket, ok := onData[device]; ok {
 			//value transition from high to low. log total time and delete from available station
-			if currentPacket == 0 && previousPacket > 1566129872 {
+			if currentPacket == 0 && previousPacket > 5 {
 				log.Println("writing packet to db")
-				tm := time.Unix(previousPacket, 0).In(loc)
-				secs := time.Now().Unix()
-				err := sql.WriteData(device, tm, float32(secs-previousPacket), "")
+				tm := time.Unix(time.Now().Unix() - previousPacket, 0).In(loc)
+				// secs := time.Now().Unix()
+				err := sql.WriteData(device, tm, float32(previousPacket), "")
 				if err != nil {
 					log.Println(err)
 				}
@@ -167,13 +158,13 @@ func main() {
 	databasePath, found := os.LookupEnv("DATABASE_PATH")
 	if !found {
 		log.Println("using default database path")
-		databasePath = "./pythonsqlite.db"
+		databasePath = "./partmon.db"
 	}
 
 	mqttServer, found := os.LookupEnv("MQTT_SERVER_ADDRESS")
 	if !found {
 		log.Println("using default mqtt server address")
-		mqttServer = "tcp://localhost:1883"
+		mqttServer = "localhost:1883"
 	}
 
 	sql, err := Opendb(databasePath)
@@ -198,3 +189,4 @@ func main() {
 	log.Fatal(http.ListenAndServe(":9503", nil))
 	c.Disconnect(250)
 }
+
