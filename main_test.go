@@ -71,7 +71,25 @@ func TestData(t *testing.T) {
 		return
 	}
 
-	if len(results) != 4 {
+	err = sql.WriteData("test5", time.Now(), 90, "")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = sql.WriteData("test6", time.Now(), 33, "")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	results, err = sql.ReadData(10, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if len(results) != 6 {
 		t.Error("Didnt get exactly 4 records which was appeneded.", "got:", len(results))
 	}
 

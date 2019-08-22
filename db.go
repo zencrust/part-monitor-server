@@ -67,17 +67,10 @@ func Opendb(filePath string) (*SQLDB, error) {
 
 // ReadData writes data to Sqlite3 report table
 func (sql *SQLDB) ReadData(limit uint16, offset uint16) ([]ScanTable, error) {
-	tx, err := sql.db.Begin()
+	rows, err := sql.db.Query(readDef, limit, offset)
 	if err != nil {
 		return nil, err
 	}
-
-	rows, err := tx.Query(readDef, limit, offset)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
 
 	tables := make([]ScanTable, 0, limit)
 	rows.Scan()
@@ -92,28 +85,21 @@ func (sql *SQLDB) ReadData(limit uint16, offset uint16) ([]ScanTable, error) {
 		tables = append(tables, table)
 	}
 
+	err = rows.Close()
+	if err != nil {
+		return tables, err
+	}
+
 	return tables, nil
 }
 
 // WriteData writes data to Sqlite3 report table
 func (sql *SQLDB) WriteData(name string, startTime time.Time, duration float32, comments string) error {
-	tx, err := sql.db.Begin()
+	_, err := sql.db.Exec(writeDef, name, startTime, duration, comments)
 	if err != nil {
 		return err
 	}
 
-	stmt, err := tx.Prepare(writeDef)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(name, startTime, duration, comments)
-	if err != nil {
-		return err
-	}
-
-	tx.Commit()
 	return nil
 }
 
