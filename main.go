@@ -19,7 +19,7 @@ var defaultMessageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqt
 	fmt.Printf("MSG: %s\n", msg.Payload())
 }
 
-func getMessageHandler(sql *SQLDB) mqtt.MessageHandler {
+func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 	onData := make(map[string]int64)
 	loc, err := time.LoadLocation("Asia/Kolkata")
 	if err != nil {
@@ -34,18 +34,32 @@ func getMessageHandler(sql *SQLDB) mqtt.MessageHandler {
 			log.Println("unknown topic format", msg.Topic())
 			return
 		}
-		if arr[2] != "dio" && arr[3] != "Swicth Pressed" {
+
+		if (arr[2] == "telemetry" && arr[3] == "wifi Signal Strength") || arr[2] == "dio" {
+			topicLastseen := arr[0] + "/" + arr[1] + "/" + arr[2] + "last update time"
+			c.Publish(topicLastseen, 0, true, time.Now().Unix())
+		}
+
+		if arr[2] != "dio" && arr[3] != "Switch Pressed" {
 			// topic not required here
 			return
 		}
 
 		//n := bytes.Index(msg.Payload(), []byte{0})
 		s := string(msg.Payload())
-		currentPacket, err := strconv.ParseInt(s, 10, 32)
+		currentPacketDevice, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			log.Println("unknown value format", s)
 			return
 		}
+
+		var currentPacket int64
+		topicModified := arr[0] + "/" + arr[1] + "/" + arr[2] + "Swicth Pressed"
+		if currentPacketDevice > 0 {
+			currentPacket = time.Now().Unix()
+		}
+
+		c.Publish(topicModified, 0, true, currentPacket)
 
 		device := arr[1]
 		//on packet
@@ -79,7 +93,7 @@ func mqttInit(brokerAddress string, sql *SQLDB) (mqtt.Client, error) {
 	}
 
 	// subs := map[string]byte{"partmon/temp/Tank 1": 0}
-	token := c.Subscribe("partalarm/#", 0, getMessageHandler(sql))
+	token := c.Subscribe("partalarm/#", 0, getMessageHandler(sql, c))
 
 	if token.Wait() && token.Error() != nil {
 		return c, token.Error()
@@ -140,13 +154,13 @@ func main() {
 	databasePath, found := os.LookupEnv("DATABASE_PATH")
 	if !found {
 		log.Println("using default database path")
-		databasePath = "./goprog.db"
+		databasePath = "D:\\test.db"
 	}
 
 	mqttServer, found := os.LookupEnv("MQTT_SERVER_ADDRESS")
 	if !found {
 		log.Println("using default mqtt server address")
-		mqttServer = "tcp://zencrust.cf:1883"
+		mqttServer = "tcp://smartdashboard.local:1883"
 	}
 
 	sql, err := Opendb(databasePath)

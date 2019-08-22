@@ -12,3 +12,6 @@
 *.out
 vendor/
 *.db
+main.go
+33.csv
+db.go
