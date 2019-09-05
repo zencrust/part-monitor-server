@@ -11,23 +11,25 @@ import (
 
 // ScanTable report data model
 type ScanTable struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	StartTime time.Time `json:"start_time"`
-	Duration  float32   `json:"duration"`
-	Comments  string    `json:"comments"`
+	ID         int       `json:"id"`
+	Name       string    `json:"name"`
+	StartTime  time.Time `json:"start_time"`
+	DioChannel string    `json:"dio_channel"`
+	Duration   float32   `json:"duration"`
+	Comments   string    `json:"comments"`
 }
 
 const createTableDef = `CREATE TABLE IF NOT EXISTS partmon_report (
     id        INTEGER  PRIMARY KEY,
     name      text  NOT NULL,
-    start_time DATETIME NOT NULL,
+	start_time DATETIME NOT NULL,
+	dio_channel text   NULL, 
     duration  REAL     NOT NULL,
     comments  text
 );`
 
-const writeDef = `INSERT INTO partmon_report(name,start_time,duration, comments)
-            VALUES(?,?,?,?);`
+const writeDef = `INSERT INTO partmon_report(name,start_time,dio_channel, duration, comments)
+            VALUES(?,?,?,?,?);`
 
 const readDef = `SELECT
  * FROM partmon_report
@@ -76,7 +78,7 @@ func (sql *SQLDB) ReadData(limit uint16, offset uint16) ([]ScanTable, error) {
 	rows.Scan()
 	for rows.Next() {
 		table := ScanTable{}
-		err = rows.Scan(&table.ID, &table.Name, &table.StartTime, &table.Duration, &table.Comments)
+		err = rows.Scan(&table.ID, &table.Name, &table.StartTime, &table.DioChannel, &table.Duration, &table.Comments)
 
 		if err != nil {
 			return tables, err
@@ -94,8 +96,8 @@ func (sql *SQLDB) ReadData(limit uint16, offset uint16) ([]ScanTable, error) {
 }
 
 // WriteData writes data to Sqlite3 report table
-func (sql *SQLDB) WriteData(name string, startTime time.Time, duration float32, comments string) error {
-	_, err := sql.db.Exec(writeDef, name, startTime, duration, comments)
+func (sql *SQLDB) WriteData(name string, startTime time.Time, dioChannel string, duration float32, comments string) error {
+	_, err := sql.db.Exec(writeDef, name, startTime, dioChannel, duration, comments)
 	if err != nil {
 		return err
 	}

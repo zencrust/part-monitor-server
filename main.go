@@ -26,35 +26,32 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 		log.Println(err)
 	}
 	return func(client mqtt.Client, msg mqtt.Message) {
-		fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
+		topic := msg.Topic()
+		fmt.Printf("%s %s\n", topic, msg.Payload())
 		//Application Name/Station Name/function/name
 		// for example partmon/Station 1/dio/value
-		arr := strings.Split(msg.Topic(), "/")
+		arr := strings.Split(topic, "/")
 		if len(arr) != 4 {
-			log.Println("unknown topic format", msg.Topic())
+			log.Println("unknown topic format", topic)
 			return
 		}
-		
+
 		if arr[3] == "wifi Signal Strength" {
 			fmt.Println("publish last seen")
 			topicLastseen := arr[0] + "/" + arr[1] + "/" + arr[2] + "/" + "last update time"
 			tot := c.Publish(topicLastseen, 0, true, strconv.FormatInt(time.Now().Unix(), 10))
 			tot.Wait()
-			if tot.Error() != nil{
+			if tot.Error() != nil {
 				log.Println(tot.Error())
 			}
 		}
 
-		if arr[2] == "telemetry"{
-			return
-		}
-			
-		if arr[3] == "Swicth Pressed" {
-			// topic not required here
+		if arr[2] == "telemetry" || arr[2] != "dio" {
 			return
 		}
 
-		//n := bytes.Index(msg.Payload(), []byte{0})
+		//only dio topics from here on
+
 		s := string(msg.Payload())
 		currentPacket, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
@@ -62,24 +59,23 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 			return
 		}
 
-
 		device := arr[1]
 		//on packet
 
-		if previousPacket, ok := onData[device]; ok {
+		if previousPacket, ok := onData[topic]; ok {
 			//value transition from high to low. log total time and delete from available station
 			if currentPacket == 0 && previousPacket > 5 {
 				log.Println("writing packet to db")
-				tm := time.Unix(time.Now().Unix() - previousPacket, 0).In(loc)
+				tm := time.Unix(time.Now().Unix()-previousPacket, 0).In(loc)
 				// secs := time.Now().Unix()
-				err := sql.WriteData(device, tm, float32(previousPacket), "")
+				err := sql.WriteData(device, tm, arr[3], float32(previousPacket), "")
 				if err != nil {
 					log.Println(err)
 				}
 			}
 		}
 
-		onData[device] = currentPacket
+		onData[topic] = currentPacket
 	}
 }
 
@@ -189,4 +185,3 @@ func main() {
 	log.Fatal(http.ListenAndServe(":9503", nil))
 	c.Disconnect(250)
 }
-

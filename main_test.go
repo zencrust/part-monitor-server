@@ -41,25 +41,25 @@ func TestData(t *testing.T) {
 
 	defer sql.db.Close()
 
-	err = sql.WriteData("test1", time.Now(), 33, "")
+	err = sql.WriteData("test1", time.Now(), "1", 33, "")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	err = sql.WriteData("test2", time.Now(), 55, "")
+	err = sql.WriteData("test2", time.Now(), "1", 55, "")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	err = sql.WriteData("test3", time.Now(), 90, "")
+	err = sql.WriteData("test3", time.Now(), "1", 90, "")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	err = sql.WriteData("test4", time.Now(), 33, "")
+	err = sql.WriteData("test4", time.Now(), "1", 33, "")
 	if err != nil {
 		t.Error(err)
 		return
@@ -71,13 +71,13 @@ func TestData(t *testing.T) {
 		return
 	}
 
-	err = sql.WriteData("test5", time.Now(), 90, "")
+	err = sql.WriteData("test5", time.Now(), "1", 90, "")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	err = sql.WriteData("test6", time.Now(), 33, "")
+	err = sql.WriteData("test6", time.Now(), "1", 33, "")
 	if err != nil {
 		t.Error(err)
 		return
