@@ -34,6 +34,11 @@ const readDef = `SELECT
  ORDER BY start_time DESC
  LIMIT ? OFFSET ?;`
 
+const readDefDate = `SELECT
+ * FROM partmon_report
+ where start_time >= ? AND start_time <= ?
+ ORDER BY start_time DESC;`
+
 // SQLDB main datastructure from database
 type SQLDB struct {
 	db *sql.DB
@@ -73,6 +78,34 @@ func (sql *SQLDB) ReadData(limit uint16, offset uint16) ([]ScanTable, error) {
 	}
 
 	tables := make([]ScanTable, 0, limit)
+	rows.Scan()
+	for rows.Next() {
+		table := ScanTable{}
+		err = rows.Scan(&table.ID, &table.Name, &table.StartTime, &table.Duration, &table.Comments)
+
+		if err != nil {
+			return tables, err
+		}
+
+		tables = append(tables, table)
+	}
+
+	err = rows.Close()
+	if err != nil {
+		return tables, err
+	}
+
+	return tables, nil
+}
+
+// ReadtimeData read data
+func (sql *SQLDB) ReadtimeData(startTime string, endTime string) ([]ScanTable, error) {
+	rows, err := sql.db.Query(readDefDate, startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	tables := make([]ScanTable, 0, 100)
 	rows.Scan()
 	for rows.Next() {
 		table := ScanTable{}

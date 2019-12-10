@@ -34,21 +34,21 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 			log.Println("unknown topic format", msg.Topic())
 			return
 		}
-		
+
 		if arr[3] == "wifi Signal Strength" {
 			fmt.Println("publish last seen")
 			topicLastseen := arr[0] + "/" + arr[1] + "/" + arr[2] + "/" + "last update time"
 			tot := c.Publish(topicLastseen, 0, true, strconv.FormatInt(time.Now().Unix(), 10))
 			tot.Wait()
-			if tot.Error() != nil{
+			if tot.Error() != nil {
 				log.Println(tot.Error())
 			}
 		}
 
-		if arr[2] == "telemetry"{
+		if arr[2] == "telemetry" {
 			return
 		}
-			
+
 		if arr[3] == "Swicth Pressed" {
 			// topic not required here
 			return
@@ -62,7 +62,6 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 			return
 		}
 
-
 		device := arr[1]
 		//on packet
 
@@ -70,7 +69,7 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 			//value transition from high to low. log total time and delete from available station
 			if currentPacket == 0 && previousPacket > 5 {
 				log.Println("writing packet to db")
-				tm := time.Unix(time.Now().Unix() - previousPacket, 0).In(loc)
+				tm := time.Unix(time.Now().Unix()-previousPacket, 0).In(loc)
 				// secs := time.Now().Unix()
 				err := sql.WriteData(device, tm, float32(previousPacket), "")
 				if err != nil {
@@ -153,6 +152,49 @@ func getReportHandler(sql *SQLDB) http.HandlerFunc {
 	}
 }
 
+func getDateReportHandler(sql *SQLDB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("getDateReportHandler GET params were:", r.URL.Query())
+		fromStr := r.URL.Query().Get("from")
+		toStr := r.URL.Query().Get("to")
+		if fromStr == "" || toStr == "" {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			fmt.Fprintf(w, "422- Query parameters not supplied")
+			return
+		}
+		// layout := "2006-01-02T15:04:05.000Z"
+		// fromVal, err1 := time.Parse(layout, fromStr)
+		// toVal, err2 := time.Parse(layout, toStr)
+
+		// if err1 != nil || err2 != nil {
+		// 	w.WriteHeader(http.StatusUnprocessableEntity)
+		// 	fmt.Fprintf(w, "422- Query parameters not valid")
+		// 	return
+		// }
+
+		table, err := sql.ReadtimeData(fromStr, toStr)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "500- something happened while getting the data you have requested")
+			return
+		}
+		if len(table) == 0 {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "{}")
+			return
+		}
+
+		v, err := json.Marshal(table)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "500- something happened while getting the data you have requested")
+			return
+		}
+		
+		w.Write(v)
+	}
+}
+
 func main() {
 	//knt := 0
 	databasePath, found := os.LookupEnv("DATABASE_PATH")
@@ -180,6 +222,7 @@ func main() {
 	}
 
 	http.HandleFunc("/api/v1/getreport", getReportHandler(sql))
+	http.HandleFunc("/api/v1/getTimereport", getDateReportHandler(sql))
 	//for 1 == 1{
 	//	time.Sleep(1 * time.Second)
 	//}
@@ -189,4 +232,3 @@ func main() {
 	log.Fatal(http.ListenAndServe(":9503", nil))
 	c.Disconnect(250)
 }
-
