@@ -12,6 +12,8 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/gocarina/gocsv"
 )
 
 var defaultMessageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
@@ -184,14 +186,27 @@ func getDateReportHandler(sql *SQLDB) http.HandlerFunc {
 			return
 		}
 
-		v, err := json.Marshal(table)
+		// clientsFile, err := os.OpenFile("clients.csv", os.O_RDWR|os.O_CREATE, os.ModePerm)
+		// if err != nil {
+		// 	w.WriteHeader(http.StatusInternalServerError)
+		// 	fmt.Fprintf(w, "500- something happened while getting the data you have requested")
+		// 	return
+		// }
+
+		// defer clientsFile.Close()
+
+		csvContent, err := gocsv.MarshalBytes(&table)
+
+		// clientsFile.Write()
+
+		// v, err := json.Marshal(table)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "500- something happened while getting the data you have requested")
 			return
 		}
-		
-		w.Write(v)
+
+		w.Write(csvContent)
 	}
 }
 

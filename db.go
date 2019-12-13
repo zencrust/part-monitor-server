@@ -11,11 +11,11 @@ import (
 
 // ScanTable report data model
 type ScanTable struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	StartTime time.Time `json:"start_time"`
-	Duration  float32   `json:"duration"`
-	Comments  string    `json:"comments"`
+	ID        int       `csv:"Id"`
+	Name      string    `csv:"Station Name"`
+	StartTime time.Time `csv:"Start Time"`
+	Duration  float32   `csv:"Duration"`
+	Comments  string    `csv:"Comments"`
 }
 
 const createTableDef = `CREATE TABLE IF NOT EXISTS partmon_report (
