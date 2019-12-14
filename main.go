@@ -21,24 +21,20 @@ var defaultMessageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqt
 	fmt.Printf("MSG: %s\n", msg.Payload())
 }
 
-func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
-	onData := make(map[string]int64)
+func getMessageHandler(sql *SQLDB, c mqtt.Client, onData map[string]int64) mqtt.MessageHandler {
+
 	loc, err := time.LoadLocation("Asia/Kolkata")
 	if err != nil {
 		log.Println(err)
 	}
 	return func(client mqtt.Client, msg mqtt.Message) {
-		fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
+		// fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
 		//Application Name/Station Name/function/name
 		// for example partmon/Station 1/dio/value
 		arr := strings.Split(msg.Topic(), "/")
-		if len(arr) != 4 {
-			log.Println("unknown topic format", msg.Topic())
-			return
-		}
 
-		if arr[3] == "wifi Signal Strength" {
-			fmt.Println("publish last seen")
+		if len(arr) == 4 && arr[3] == "wifi Signal Strength" {
+			// fmt.Println("publish last seen")
 			topicLastseen := arr[0] + "/" + arr[1] + "/" + arr[2] + "/" + "last update time"
 			tot := c.Publish(topicLastseen, 0, true, strconv.FormatInt(time.Now().Unix(), 10))
 			tot.Wait()
@@ -51,8 +47,8 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client) mqtt.MessageHandler {
 			return
 		}
 
-		if arr[3] == "Swicth Pressed" {
-			// topic not required here
+		if len(arr) != 4 {
+			log.Println("unknown topic format", msg.Topic())
 			return
 		}
 
@@ -90,6 +86,15 @@ func mqttInit(brokerAddress string, sql *SQLDB) (mqtt.Client, error) {
 	opts.SetDefaultPublishHandler(defaultMessageHandler)
 	opts.SetPingTimeout(1 * time.Second)
 	opts.SetAutoReconnect(true)
+	onData := make(map[string]int64)
+	opts.OnConnect = func(cl mqtt.Client) {
+		token := cl.Subscribe("partalarm/#", 0, getMessageHandler(sql, cl, onData))
+
+		if token.Wait() && token.Error() != nil {
+			panic(token.Error())
+		}
+	}
+
 	c := mqtt.NewClient(opts)
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		log.Println("mqtt server error")
@@ -97,11 +102,6 @@ func mqttInit(brokerAddress string, sql *SQLDB) (mqtt.Client, error) {
 	}
 	fmt.Println("mqtt connected")
 	// subs := map[string]byte{"partmon/temp/Tank 1": 0}
-	token := c.Subscribe("partalarm/#", 0, getMessageHandler(sql, c))
-
-	if token.Wait() && token.Error() != nil {
-		return c, token.Error()
-	}
 
 	return c, nil
 }
@@ -164,15 +164,6 @@ func getDateReportHandler(sql *SQLDB) http.HandlerFunc {
 			fmt.Fprintf(w, "422- Query parameters not supplied")
 			return
 		}
-		// layout := "2006-01-02T15:04:05.000Z"
-		// fromVal, err1 := time.Parse(layout, fromStr)
-		// toVal, err2 := time.Parse(layout, toStr)
-
-		// if err1 != nil || err2 != nil {
-		// 	w.WriteHeader(http.StatusUnprocessableEntity)
-		// 	fmt.Fprintf(w, "422- Query parameters not valid")
-		// 	return
-		// }
 
 		table, err := sql.ReadtimeData(fromStr, toStr)
 		if err != nil {
@@ -186,20 +177,8 @@ func getDateReportHandler(sql *SQLDB) http.HandlerFunc {
 			return
 		}
 
-		// clientsFile, err := os.OpenFile("clients.csv", os.O_RDWR|os.O_CREATE, os.ModePerm)
-		// if err != nil {
-		// 	w.WriteHeader(http.StatusInternalServerError)
-		// 	fmt.Fprintf(w, "500- something happened while getting the data you have requested")
-		// 	return
-		// }
-
-		// defer clientsFile.Close()
-
 		csvContent, err := gocsv.MarshalBytes(&table)
 
-		// clientsFile.Write()
-
-		// v, err := json.Marshal(table)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "500- something happened while getting the data you have requested")
@@ -221,7 +200,7 @@ func main() {
 	mqttServer, found := os.LookupEnv("MQTT_SERVER_ADDRESS")
 	if !found {
 		log.Println("using default mqtt server address")
-		mqttServer = "localhost:1883"
+		mqttServer = "192.168.0.116:1883"
 	}
 
 	sql, err := Opendb(databasePath)
@@ -236,14 +215,17 @@ func main() {
 		log.Println(err)
 	}
 
+	// ch := make(chan os.Signal, 1)
+	// signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+
+	// go func() {
 	http.HandleFunc("/api/v1/getreport", getReportHandler(sql))
 	http.HandleFunc("/api/v1/getTimereport", getDateReportHandler(sql))
-	//for 1 == 1{
-	//	time.Sleep(1 * time.Second)
-	//}
-	//cha := make(chan os.Signal, 1)
-	//<- cha
+
 	fmt.Println("starting http server...")
 	log.Fatal(http.ListenAndServe(":9503", nil))
 	c.Disconnect(250)
+	// }()
+
+	// <-ch
 }
