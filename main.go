@@ -63,6 +63,7 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client, onData map[string]int64) mqtt.
 		device := arr[1]
 		//on packet
 
+		fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
 		if previousPacket, ok := onData[device]; ok {
 			//value transition from high to low. log total time and delete from available station
 			if currentPacket == 0 && previousPacket > 5 {
