@@ -223,8 +223,8 @@ func main() {
 	mqttServer, found := os.LookupEnv("MQTT_SERVER_ADDRESS")
 	if !found {
 		log.Println("using default mqtt server address")
-		// mqttServer = "localhost:1883"
-		mqttServer = "broker.hivemq.com:1883"
+		mqttServer = "localhost:1883"
+		// mqttServer = "broker.hivemq.com:1883"
 
 	}
 
