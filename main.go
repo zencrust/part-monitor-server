@@ -6,8 +6,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -190,8 +192,28 @@ func getDateReportHandler(sql *SQLDB) http.HandlerFunc {
 	}
 }
 
+func dbserve(databasePath string) {
+	go func() {
+		sql, err := Opendb(databasePath)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer sql.Close()
+
+		http.HandleFunc("/api/v1/getreport", getReportHandler(sql))
+		http.HandleFunc("/api/v1/getTimereport", getDateReportHandler(sql))
+
+		fmt.Println("starting http server...")
+		log.Fatal(http.ListenAndServe(":9503", nil))
+	}()
+}
+
 func main() {
-	//knt := 0
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+
 	databasePath, found := os.LookupEnv("DATABASE_PATH")
 	if !found {
 		log.Println("using default database path")
@@ -201,9 +223,12 @@ func main() {
 	mqttServer, found := os.LookupEnv("MQTT_SERVER_ADDRESS")
 	if !found {
 		log.Println("using default mqtt server address")
-		mqttServer = "192.168.0.116:1883"
+		// mqttServer = "localhost:1883"
+		mqttServer = "broker.hivemq.com:1883"
+
 	}
 
+	dbserve(databasePath)
 	sql, err := Opendb(databasePath)
 
 	if err != nil {
@@ -211,22 +236,19 @@ func main() {
 	}
 	defer sql.Close()
 
-	c, err := mqttInit(mqttServer, sql)
-	if err != nil {
-		log.Println(err)
+	for {
+		c, err := mqttInit(mqttServer, sql)
+		if err != nil {
+			log.Println("mqtt error\n", err)
+
+			if c != nil {
+				c.Disconnect(100)
+			}
+		} else {
+			break
+		}
 	}
 
-	// ch := make(chan os.Signal, 1)
-	// signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	<-ch
 
-	// go func() {
-	http.HandleFunc("/api/v1/getreport", getReportHandler(sql))
-	http.HandleFunc("/api/v1/getTimereport", getDateReportHandler(sql))
-
-	fmt.Println("starting http server...")
-	log.Fatal(http.ListenAndServe(":9503", nil))
-	c.Disconnect(250)
-	// }()
-
-	// <-ch
 }
