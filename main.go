@@ -83,7 +83,7 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client, onData map[string]int64) mqtt.
 	}
 }
 
-func mqttInit(brokerAddress string, sql *SQLDB) (mqtt.Client, error) {
+func mqttInit(brokerAddress string, applicationName string, sql *SQLDB) (mqtt.Client, error) {
 	opts := mqtt.NewClientOptions().AddBroker(brokerAddress).SetClientID("dbstoreinstance")
 	opts.SetKeepAlive(2 * time.Second)
 	opts.SetDefaultPublishHandler(defaultMessageHandler)
@@ -91,7 +91,7 @@ func mqttInit(brokerAddress string, sql *SQLDB) (mqtt.Client, error) {
 	opts.SetAutoReconnect(true)
 	onData := make(map[string]int64)
 	opts.OnConnect = func(cl mqtt.Client) {
-		token := cl.Subscribe("partalarm/#", 0, getMessageHandler(sql, cl, onData))
+		token := cl.Subscribe(fmt.Sprintf("%s/#", applicationName), 0, getMessageHandler(sql, cl, onData))
 
 		if token.Wait() && token.Error() != nil {
 			panic(token.Error())
@@ -228,6 +228,13 @@ func main() {
 
 	}
 
+	applicationName, found := os.LookupEnv("APPNAME")
+	if !found {
+		log.Println("using default mqtt server address")
+		// mqttServer = "localhost:1883"
+		applicationName = "partalarm"
+	}
+
 	dbserve(databasePath)
 	sql, err := Opendb(databasePath)
 
@@ -237,7 +244,7 @@ func main() {
 	defer sql.Close()
 
 	for {
-		c, err := mqttInit(mqttServer, sql)
+		c, err := mqttInit(mqttServer, applicationName, sql)
 		if err != nil {
 			log.Println("mqtt error\n", err)
 
