@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -25,62 +24,25 @@ var defaultMessageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqt
 
 func getMessageHandler(sql *SQLDB, c mqtt.Client, onData map[string]int64) mqtt.MessageHandler {
 
-	loc, err := time.LoadLocation("Asia/Kolkata")
-	if err != nil {
-		log.Println(err)
-	}
 	return func(client mqtt.Client, msg mqtt.Message) {
-		// fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
-		//Application Name/Station Name/function/name
-		// for example partmon/Station 1/dio/value
-		arr := strings.Split(msg.Topic(), "/")
-
-		if len(arr) == 4 && arr[3] == "wifi Signal Strength" {
-			// fmt.Println("publish last seen")
-			topicLastseen := arr[0] + "/" + arr[1] + "/" + arr[2] + "/" + "last update time"
-			tot := c.Publish(topicLastseen, 0, true, strconv.FormatInt(time.Now().Unix(), 10))
-			tot.Wait()
-			if tot.Error() != nil {
-				log.Println(tot.Error())
-			}
-		}
-
-		if arr[2] == "telemetry" {
-			return
-		}
-
-		if len(arr) != 4 {
-			log.Println("unknown topic format", msg.Topic())
-			return
-		}
-
-		//n := bytes.Index(msg.Payload(), []byte{0})
-		s := string(msg.Payload())
-		currentPacket, err := strconv.ParseInt(s, 10, 32)
+		var data MqttTable
+		err := json.Unmarshal(msg.Payload(), &data)
 		if err != nil {
-			log.Println("unknown value format", s)
+			log.Println("unknown value format", string(msg.Payload()))
 			return
 		}
-
-		device := arr[1]
-		//on packet
 
 		fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
-		if previousPacket, ok := onData[device]; ok {
+		if !data.IsActive {
 			//value transition from high to low. log total time and delete from available station
-			if currentPacket == 0 && previousPacket > 5 {
-				log.Println("writing packet to db")
-				tm := time.Unix(time.Now().Unix()-previousPacket, 0).In(loc)
-				// secs := time.Now().Unix()
-				err := sql.WriteData(device, tm, float32(previousPacket), "")
-				if err != nil {
-					log.Println(err)
-				}
+			log.Println("writing packet to db")
+			err := sql.WriteData(data)
+			if err != nil {
+				log.Println(err)
 			}
 		}
-
-		onData[device] = currentPacket
 	}
+
 }
 
 func mqttInit(brokerAddress string, applicationName string, sql *SQLDB) (mqtt.Client, error) {
@@ -104,7 +66,6 @@ func mqttInit(brokerAddress string, applicationName string, sql *SQLDB) (mqtt.Cl
 		return c, token.Error()
 	}
 	fmt.Println("mqtt connected")
-	// subs := map[string]byte{"partmon/temp/Tank 1": 0}
 
 	return c, nil
 }
@@ -205,7 +166,7 @@ func dbserve(databasePath string) {
 		http.HandleFunc("/api/v1/getTimereport", getDateReportHandler(sql))
 
 		fmt.Println("starting http server...")
-		log.Fatal(http.ListenAndServe(":9503", nil))
+		log.Fatal(http.ListenAndServe(":9504", nil))
 	}()
 }
 
@@ -217,7 +178,7 @@ func main() {
 	databasePath, found := os.LookupEnv("DATABASE_PATH")
 	if !found {
 		log.Println("using default database path")
-		databasePath = "./partmon.db"
+		databasePath = "./partmon2.db"
 	}
 
 	mqttServer, found := os.LookupEnv("MQTT_SERVER_ADDRESS")
@@ -232,7 +193,7 @@ func main() {
 	if !found {
 		log.Println("using default mqtt server address")
 		// mqttServer = "localhost:1883"
-		applicationName = "partalarm"
+		applicationName = "partalarm2/eAndon"
 	}
 
 	dbserve(databasePath)
