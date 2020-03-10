@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 )
 
 func TestOpenDb(t *testing.T) {
@@ -40,26 +39,61 @@ func TestData(t *testing.T) {
 	}
 
 	defer sql.db.Close()
+	d1 := MqttTable{
+		AlertId:       "123456",
+		Alert:         "Breakdown",
+		AcknowledgeBy: "User1",
+		AlertType:     "Tyep1",
+		InitiateTime:  "2006-01-02 15:04:05",
+		Location:      "Location1",
+		SlaLevel:      1,
+	}
+	d2 := MqttTable{
+		AlertId:       "123457",
+		Alert:         "Breakdown",
+		AcknowledgeBy: "User2",
+		AlertType:     "Tyep2",
+		InitiateTime:  "2006-01-02 15:04:05",
+		Location:      "Location2",
+		SlaLevel:      1,
+	}
 
-	err = sql.WriteData("test1", time.Now(), 33, "")
+	d3 := MqttTable{
+		AlertId:       "123458",
+		Alert:         "Breakdown",
+		AcknowledgeBy: "User3",
+		AlertType:     "Tyep3",
+		InitiateTime:  "2006-01-02 15:04:05",
+		Location:      "Location3",
+		SlaLevel:      1,
+	}
+
+	d4 := MqttTable{
+		AlertId:       "123459",
+		Alert:         "Breakdown",
+		AcknowledgeBy: "User4",
+		AlertType:     "Tyep4",
+		InitiateTime:  "2006-01-02 15:04:05",
+		Location:      "Location4",
+		SlaLevel:      1,
+	}
+
+	err = sql.WriteData(d1)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-
-	err = sql.WriteData("test2", time.Now(), 55, "")
+	err = sql.WriteData(d2)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-
-	err = sql.WriteData("test3", time.Now(), 90, "")
+	err = sql.WriteData(d3)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-
-	err = sql.WriteData("test4", time.Now(), 33, "")
+	err = sql.WriteData(d4)
 	if err != nil {
 		t.Error(err)
 		return
@@ -71,30 +105,12 @@ func TestData(t *testing.T) {
 		return
 	}
 
-	err = sql.WriteData("test5", time.Now(), 90, "")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	err = sql.WriteData("test6", time.Now(), 33, "")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	results, err = sql.ReadData(10, 0)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if len(results) != 6 {
+	if len(results) != 4 {
 		t.Error("Didnt get exactly 4 records which was appeneded.", "got:", len(results))
 	}
 
 	for _, res := range results {
-		fmt.Printf("%s, %s, %6.1f, %s\n", res.Name, res.StartTime, res.Duration, res.Comments)
+		fmt.Printf("%s, %s, %s, %s\n", res.Location, res.InitiateTime, res.Alert, res.AlertType)
 	}
 
 }
