@@ -1,0 +1,11 @@
+[Unit]
+Description=part monitor server service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+ExecStart=/home/ubuntu/part-monitor-server/part-monitor-server
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=eandon server service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+ExecStart=/home/ubuntu/eandon-monitor-server/eandon-monitor-server
+
+[Install]
+WantedBy=multi-user.target
