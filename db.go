@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	// this is required for sqlite3 database
 	_ "github.com/mattn/go-sqlite3"
@@ -42,17 +43,17 @@ type MqttTable struct {
 
 // CsvTable report data model
 type CsvTable struct {
-	AlertId         string `csv:"AlertId"`
-	Alert           string `csv:"Alert"`
-	AlertType       string `csv:"AlertType"`
-	Location        string `csv:"Location"`
-	InitiatedBy     string `csv:"InitiatedBy"`
-	AcknowledgeBy   string `csv:"AcknowledgeBy"`
-	ResolvedBy      string `csv:"ResolvedBy"`
-	InitiateTime    string `csv:"InitiateTime"`
-	AcknowledgeTime string `csv:"AcknowledgeTime"`
-	ResolvedTime    string `csv:"ResolvedTime"`
-	SlaLevel        int    `csv:"SlaLevel"`
+	AlertId         string    `csv:"AlertId"`
+	Alert           string    `csv:"Alert"`
+	AlertType       string    `csv:"AlertType"`
+	Location        string    `csv:"Location"`
+	InitiatedBy     string    `csv:"InitiatedBy"`
+	AcknowledgeBy   string    `csv:"AcknowledgeBy"`
+	ResolvedBy      string    `csv:"ResolvedBy"`
+	InitiateTime    time.Time `csv:"InitiateTime"`
+	AcknowledgeTime time.Time `csv:"AcknowledgeTime"`
+	ResolvedTime    time.Time `csv:"ResolvedTime"`
+	SlaLevel        int       `csv:"SlaLevel"`
 }
 
 const createTableDef = `CREATE TABLE IF NOT EXISTS partmon_report (
@@ -168,7 +169,8 @@ func (sql *SQLDB) ReadtimeData(startTime string, endTime string) ([]CsvTable, er
 		table := CsvTable{}
 		// var StartTime time.Time
 		var Id int
-		err = rows.Scan(&Id, &table.AlertId,
+		err = rows.Scan(&Id,
+			&table.AlertId,
 			&table.Alert,
 			&table.AlertType,
 			&table.Location,
@@ -199,6 +201,11 @@ func (sql *SQLDB) ReadtimeData(startTime string, endTime string) ([]CsvTable, er
 
 // WriteData writes data to Sqlite3 report table
 func (sql *SQLDB) WriteData(data MqttTable) error {
+	layout := "01/Mar/2006 03:04:05 PM"
+	InitiateTime, _ := time.Parse(layout, data.InitiateTime)
+	AcknowledgeTime, _ := time.Parse(layout, data.AcknowledgeTime)
+	ResolvedTime, _ := time.Parse(layout, data.ResolvedTime)
+
 	_, err := sql.db.Exec(writeDef,
 		data.AlertId,
 		data.Alert,
@@ -207,9 +214,9 @@ func (sql *SQLDB) WriteData(data MqttTable) error {
 		data.InitiatedBy,
 		data.AcknowledgeBy,
 		data.ResolvedBy,
-		data.InitiateTime,
-		data.AcknowledgeTime,
-		data.ResolvedTime,
+		InitiateTime,
+		AcknowledgeTime,
+		ResolvedTime,
 		data.SlaLevel)
 	if err != nil {
 		return err

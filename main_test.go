@@ -44,7 +44,7 @@ func TestData(t *testing.T) {
 		Alert:         "Breakdown",
 		AcknowledgeBy: "User1",
 		AlertType:     "Tyep1",
-		InitiateTime:  "2006-01-02 15:04:05",
+		InitiateTime:  "11/Mar/2020 09:05:54 AM",
 		Location:      "Location1",
 		SlaLevel:      1,
 	}
@@ -53,7 +53,7 @@ func TestData(t *testing.T) {
 		Alert:         "Breakdown",
 		AcknowledgeBy: "User2",
 		AlertType:     "Tyep2",
-		InitiateTime:  "2006-01-02 15:04:05",
+		InitiateTime:  "11/Mar/2020 09:05:54 AM",
 		Location:      "Location2",
 		SlaLevel:      1,
 	}
@@ -63,7 +63,7 @@ func TestData(t *testing.T) {
 		Alert:         "Breakdown",
 		AcknowledgeBy: "User3",
 		AlertType:     "Tyep3",
-		InitiateTime:  "2006-01-02 15:04:05",
+		InitiateTime:  "11/Mar/2020 09:05:54 AM",
 		Location:      "Location3",
 		SlaLevel:      1,
 	}
@@ -73,7 +73,7 @@ func TestData(t *testing.T) {
 		Alert:         "Breakdown",
 		AcknowledgeBy: "User4",
 		AlertType:     "Tyep4",
-		InitiateTime:  "2006-01-02 15:04:05",
+		InitiateTime:  "11/Mar/2020 09:05:54 AM",
 		Location:      "Location4",
 		SlaLevel:      1,
 	}
