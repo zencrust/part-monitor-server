@@ -33,14 +33,14 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client, onData map[string]int64) mqtt.
 		}
 
 		// fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
-		if !data.IsActive {
-			//value transition from high to low. log total time and delete from available station
-			log.Println("writing packet to db")
-			err := sql.WriteData(data)
-			if err != nil {
-				log.Println(err)
-			}
+		//if !data.IsActive {
+		//value transition from high to low. log total time and delete from available station
+		//log.Println("writing packet to db")
+		err2 := sql.WriteData(data)
+		if err2 != nil {
+			log.Println(err2)
 		}
+		//}
 	}
 
 }
@@ -179,7 +179,7 @@ func dbserve(databasePath string) {
 func main() {
 
 	ch := make(chan os.Signal, 1)
-	fmt.Println("ver 3.0");
+	fmt.Println("ver 3.0")
 	fmt.Println(time.Now().String())
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 

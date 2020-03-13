@@ -11,19 +11,18 @@ import (
 
 // ScanTable report data model
 type ScanTable struct {
-	ID              int    `csv:"Id"`
-	AlertId         string `csv:"AlertId"`
-	Alert           string `csv:"Alert"`
-	AlertType       string `csv:"AlertType"`
-	Location        string `csv:"Location"`
-	InitiatedBy     string `csv:"InitiatedBy"`
-	AcknowledgeBy   string `csv:"AcknowledgeBy"`
-	ResolvedBy      string `csv:"ResolvedBy"`
-	InitiateTime    string `csv:"InitiateTime"`
-	IsActive        bool   `csv:"IsActive"`
-	AcknowledgeTime string `csv:"AcknowledgeTime"`
-	ResolvedTime    string `csv:"ResolvedTime"`
-	SlaLevel        int    `csv:"SlaLevel"`
+	AlertId         string    `csv:"AlertId"`
+	Alert           string    `csv:"Alert"`
+	AlertType       string    `csv:"AlertType"`
+	Location        string    `csv:"Location"`
+	InitiatedBy     string    `csv:"InitiatedBy"`
+	AcknowledgeBy   string    `csv:"AcknowledgeBy"`
+	ResolvedBy      string    `csv:"ResolvedBy"`
+	InitiateTime    time.Time `csv:"InitiateTime"`
+	IsActive        bool      `csv:"IsActive"`
+	AcknowledgeTime time.Time `csv:"AcknowledgeTime"`
+	ResolvedTime    time.Time `csv:"ResolvedTime"`
+	SlaLevel        int       `csv:"SlaLevel"`
 }
 
 type MqttTable struct {
@@ -43,22 +42,22 @@ type MqttTable struct {
 
 // CsvTable report data model
 type CsvTable struct {
-	AlertId         string    `csv:"AlertId"`
-	Alert           string    `csv:"Alert"`
-	AlertType       string    `csv:"AlertType"`
-	Location        string    `csv:"Location"`
-	InitiatedBy     string    `csv:"InitiatedBy"`
-	AcknowledgeBy   string    `csv:"AcknowledgeBy"`
-	ResolvedBy      string    `csv:"ResolvedBy"`
-	InitiateTime    time.Time `csv:"InitiateTime"`
-	AcknowledgeTime time.Time `csv:"AcknowledgeTime"`
-	ResolvedTime    time.Time `csv:"ResolvedTime"`
-	SlaLevel        int       `csv:"SlaLevel"`
+	AlertId         string `csv:"AlertId"`
+	Alert           string `csv:"Alert"`
+	AlertType       string `csv:"AlertType"`
+	Location        string `csv:"Location"`
+	InitiatedBy     string `csv:"InitiatedBy"`
+	AcknowledgeBy   string `csv:"AcknowledgeBy"`
+	ResolvedBy      string `csv:"ResolvedBy"`
+	InitiateTime    string `csv:"InitiateTime"`
+	AcknowledgeTime string `csv:"AcknowledgeTime"`
+	ResolvedTime    string `csv:"ResolvedTime"`
+	SlaLevel        int    `csv:"SlaLevel"`
+	Duration        string `csv:Duration`
 }
 
 const createTableDef = `CREATE TABLE IF NOT EXISTS partmon_report (
-    id        INTEGER  PRIMARY KEY,
-	AlertId      text  NOT NULL,
+	AlertId      text  PRIMARY KEY,
 	Alert      text  NOT NULL,
     AlertType      text  NOT NULL,
     Location      text  NOT NULL,
@@ -71,7 +70,7 @@ const createTableDef = `CREATE TABLE IF NOT EXISTS partmon_report (
     SlaLevel  INTEGER
 );`
 
-const writeDef = `INSERT INTO partmon_report(AlertId,Alert,AlertType, 
+const writeDef = `INSERT OR REPLACE INTO partmon_report(AlertId,Alert,AlertType, 
 	Location, InitiatedBy, AcknowledgeBy, ResolvedBy, InitiateTime, 
 	AcknowledgeTime, ResolvedTime, SlaLevel)
             VALUES(?,?,?,?,?,?,?,?,?,?,?);`
@@ -128,7 +127,7 @@ func (sql *SQLDB) ReadData(limit uint16, offset uint16) ([]ScanTable, error) {
 	rows.Scan()
 	for rows.Next() {
 		table := ScanTable{}
-		err = rows.Scan(&table.ID,
+		err = rows.Scan(
 			&table.AlertId,
 			&table.Alert,
 			&table.AlertType,
@@ -156,6 +155,14 @@ func (sql *SQLDB) ReadData(limit uint16, offset uint16) ([]ScanTable, error) {
 	return tables, nil
 }
 
+func fmtDuration(d time.Duration) string {
+	d = d.Round(time.Minute)
+	h := d / time.Hour
+	d -= h * time.Hour
+	m := d / time.Minute
+	return fmt.Sprintf("%02d:%02d", h, m)
+}
+
 // ReadtimeData read data
 func (sql *SQLDB) ReadtimeData(startTime string, endTime string) ([]CsvTable, error) {
 	rows, err := sql.db.Query(readDefDate, startTime, endTime)
@@ -166,10 +173,9 @@ func (sql *SQLDB) ReadtimeData(startTime string, endTime string) ([]CsvTable, er
 	tables := make([]CsvTable, 0, 100)
 	rows.Scan()
 	for rows.Next() {
-		table := CsvTable{}
+		table := ScanTable{}
 		// var StartTime time.Time
-		var Id int
-		err = rows.Scan(&Id,
+		err = rows.Scan(
 			&table.AlertId,
 			&table.Alert,
 			&table.AlertType,
@@ -188,7 +194,35 @@ func (sql *SQLDB) ReadtimeData(startTime string, endTime string) ([]CsvTable, er
 
 		// table.StartDate = StartTime.Format("2006-01-02")
 		// table.StartTime = StartTime.Format("15:04:05")
-		tables = append(tables, table)
+		format := "2006-01-02 03:04:05 PM"
+		AckTime := ""
+		if !table.AcknowledgeTime.IsZero() {
+			AckTime = table.AcknowledgeTime.Format(format)
+		}
+
+		ResTime := ""
+		Duration := ""
+		if !table.ResolvedTime.IsZero() {
+			ResTime = table.ResolvedTime.Format(format)
+			Duration = fmtDuration(table.ResolvedTime.Sub(table.InitiateTime))
+		}
+
+		csvTable := CsvTable{
+			AlertId:         table.AlertId,
+			Alert:           table.Alert,
+			AlertType:       table.AlertType,
+			Location:        table.Location,
+			InitiatedBy:     table.InitiatedBy,
+			AcknowledgeBy:   table.AcknowledgeBy,
+			ResolvedBy:      table.ResolvedBy,
+			InitiateTime:    table.InitiateTime.Format(format),
+			AcknowledgeTime: AckTime,
+			ResolvedTime:    ResTime,
+			SlaLevel:        table.SlaLevel,
+			Duration:        Duration,
+		}
+
+		tables = append(tables, csvTable)
 	}
 
 	err = rows.Close()
