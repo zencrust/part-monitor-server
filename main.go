@@ -18,8 +18,8 @@ import (
 )
 
 var defaultMessageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	fmt.Printf("TOPIC: %s\n", msg.Topic())
-	fmt.Printf("MSG: %s\n", msg.Payload())
+	// fmt.Printf("TOPIC: %s\n", msg.Topic())
+	// fmt.Printf("MSG: %s\n", msg.Payload())
 }
 
 func getMessageHandler(sql *SQLDB, c mqtt.Client, onData map[string]int64) mqtt.MessageHandler {
@@ -32,7 +32,7 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client, onData map[string]int64) mqtt.
 			return
 		}
 
-		fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
+		// fmt.Printf("%s %s\n", msg.Topic(), msg.Payload())
 		if !data.IsActive {
 			//value transition from high to low. log total time and delete from available station
 			log.Println("writing packet to db")
@@ -51,12 +51,18 @@ func mqttInit(brokerAddress string, applicationName string, sql *SQLDB) (mqtt.Cl
 	opts.SetDefaultPublishHandler(defaultMessageHandler)
 	opts.SetPingTimeout(1 * time.Second)
 	opts.SetAutoReconnect(true)
+	opts.SetResumeSubs(true)
+	opts.SetCleanSession(true)
 	onData := make(map[string]int64)
 	opts.OnConnect = func(cl mqtt.Client) {
-		token := cl.Subscribe(fmt.Sprintf("%s/#", applicationName), 0, getMessageHandler(sql, cl, onData))
+		for true {
+			token := cl.Subscribe(fmt.Sprintf("%s/#", applicationName), 0, getMessageHandler(sql, cl, onData))
 
-		if token.Wait() && token.Error() != nil {
-			panic(token.Error())
+			if token.Wait() && token.Error() != nil {
+				log.Println(token.Error())
+			} else {
+				break
+			}
 		}
 	}
 
@@ -173,12 +179,14 @@ func dbserve(databasePath string) {
 func main() {
 
 	ch := make(chan os.Signal, 1)
+	fmt.Println("ver 3.0");
+	fmt.Println(time.Now().String())
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 
 	databasePath, found := os.LookupEnv("DATABASE_PATH")
 	if !found {
 		log.Println("using default database path")
-		databasePath = "./partmon2.db"
+		databasePath = "./eandon.db"
 	}
 
 	mqttServer, found := os.LookupEnv("MQTT_SERVER_ADDRESS")

@@ -201,7 +201,7 @@ func (sql *SQLDB) ReadtimeData(startTime string, endTime string) ([]CsvTable, er
 
 // WriteData writes data to Sqlite3 report table
 func (sql *SQLDB) WriteData(data MqttTable) error {
-	layout := "01/Mar/2006 03:04:05 PM"
+	layout := "02/Jan/2006 03:04:05 PM"
 	InitiateTime, _ := time.Parse(layout, data.InitiateTime)
 	AcknowledgeTime, _ := time.Parse(layout, data.AcknowledgeTime)
 	ResolvedTime, _ := time.Parse(layout, data.ResolvedTime)
