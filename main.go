@@ -46,7 +46,7 @@ func getMessageHandler(sql *SQLDB, c mqtt.Client, onData map[string]int64) mqtt.
 }
 
 func mqttInit(brokerAddress string, applicationName string, sql *SQLDB) (mqtt.Client, error) {
-	opts := mqtt.NewClientOptions().AddBroker(brokerAddress).SetClientID("dbstoreinstance")
+	opts := mqtt.NewClientOptions().AddBroker(brokerAddress).SetClientID("eandonstoreinstance")
 	opts.SetKeepAlive(2 * time.Second)
 	opts.SetDefaultPublishHandler(defaultMessageHandler)
 	opts.SetPingTimeout(1 * time.Second)
